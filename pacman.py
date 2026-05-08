@@ -1,4 +1,4 @@
-from random import choice
+from random import choice, random
 from turtle import *
 
 from freegames import floor, vector
@@ -38,6 +38,8 @@ tiles = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ]
 # fmt: on
+
+GHOST_INTELLIGENCE = [1.0, 0.85, 0.75, 0.6]
 
 
 def square(x, y):
@@ -96,6 +98,35 @@ def world():
                 path.dot(2, 'white')
 
 
+def smart_direction(point, course, intelligence):
+    options = [
+        vector(5, 0),
+        vector(-5, 0),
+        vector(0, 5),
+        vector(0, -5),
+    ]
+
+    opposite = vector(-course.x, -course.y)
+
+    valid_options = [v for v in options if valid(point + v)]
+    non_reverse = [v for v in valid_options if v.x != opposite.x or v.y != opposite.y]
+    candidates = non_reverse if non_reverse else valid_options
+
+    if not candidates:
+        return course  
+
+    if random() < intelligence:
+
+        def manhattan(v):
+            nx = point.x + v.x
+            ny = point.y + v.y
+            return abs(nx - pacman.x) + abs(ny - pacman.y)
+
+        return min(candidates, key=manhattan)
+    else:
+        return choice(candidates)
+
+
 def move():
     """Move pacman and all ghosts."""
     writer.undo()
@@ -119,19 +150,19 @@ def move():
     goto(pacman.x + 10, pacman.y + 10)
     dot(20, 'yellow')
 
-    for point, course in ghosts:
+    for i, (point, course) in enumerate(ghosts):
+        intelligence = GHOST_INTELLIGENCE[i]
+
         if valid(point + course):
-            point.move(course)
+            new_dir = smart_direction(point, course, intelligence)
+            course.x = new_dir.x
+            course.y = new_dir.y
         else:
-            options = [
-                vector(5, 0),
-                vector(-5, 0),
-                vector(0, 5),
-                vector(0, -5),
-            ]
-            plan = choice(options)
-            course.x = plan.x
-            course.y = plan.y
+            new_dir = smart_direction(point, course, intelligence)
+            course.x = new_dir.x
+            course.y = new_dir.y
+
+        point.move(course)
 
         up()
         goto(point.x + 10, point.y + 10)
